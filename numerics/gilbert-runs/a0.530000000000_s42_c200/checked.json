@@ -1,0 +1,27 @@
+{
+  "key": {
+    "alpha": 0.53,
+    "seed": 42,
+    "correction_budget": 200,
+    "trial_limit": 10000000,
+    "binary_sha256": "a2fa9a6cacd0b1e17ba57c901d39321720fc736ee27724f08aea0750d416c57a"
+  },
+  "result": {
+    "alpha": 0.53,
+    "seed": 42,
+    "correction_budget": 200,
+    "corrections": 200,
+    "trials": 839890,
+    "stop_reason": "correction_budget",
+    "analytic_distance2": 0.26932692,
+    "gilbert_distance2": 0.2693292333599649,
+    "distance2_excess": 2.3133599648672565e-06,
+    "distance_excess": 2.228806701309871e-06,
+    "trace_error": 2.220446049250313e-16,
+    "min_eig": 0.08515112165225751,
+    "min_pt_eig": 1.6857787714812593e-06,
+    "metric_recheck_error": 5.551115123125783e-17,
+    "elapsed_seconds": 0.5549758799988922,
+    "raw_directory": "a0.530000000000_s42_c200"
+  }
+}

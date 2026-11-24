@@ -1,0 +1,6 @@
+Dimensions line: 4 4 1
+Matrix dimensions: 4 x 4
+Input: input.mtx  shape=(4, 4)  N=2  d=2
+optimizer=grad  initial dist=0.000000  final dist=0.000000  corrections=0
+CSS matrix  → ./input_css.mtx
+Distances   → ./input_distances.csv

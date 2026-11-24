@@ -1,0 +1,13 @@
+[package]
+name = "rusty-code"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ndarray = "0.17.2"
+num-complex = "0.4.6"
+rand = "0.10.1"
+rand_distr = "0.6.0"
+serde = { version = "1", features = ["derive"] }
+toml = "1.1.2+spec-1.1.0"
+csv = "1.3"

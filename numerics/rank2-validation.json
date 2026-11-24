@@ -1,0 +1,55 @@
+{
+  "samples": 75,
+  "max_distance2_error": 3.775924017901389e-12,
+  "max_trace_error": 9.14823772291129e-14,
+  "min_eig": 3.5202743497997346e-14,
+  "min_pt_eig": -8.500177829402072e-13,
+  "embedded_checks": [
+    {
+      "alpha": 0.05,
+      "absolute_error": 2.3172939261906222e-12
+    },
+    {
+      "alpha": 0.2,
+      "absolute_error": 9.128114930589959e-13
+    },
+    {
+      "alpha": 0.3568220897730899,
+      "absolute_error": 4.855171820139503e-12
+    },
+    {
+      "alpha": 0.5,
+      "absolute_error": 5.9066362911863735e-12
+    },
+    {
+      "alpha": 0.7071067811865475,
+      "absolute_error": 4.61758409286972e-12
+    }
+  ],
+  "algebra": [
+    "stationary cubic",
+    "physical-root bound identity",
+    "envelope derivative",
+    "trace-preserving descent",
+    "equal-redistribution square completion"
+  ],
+  "formula_checks": {
+    "max_cardano_error": 4.440892098500626e-16,
+    "max_gradient_fd_error": 1.2846956831680245e-10,
+    "max_separable_reconstruction_error": 5.551115123125783e-16,
+    "concurrence_relation": {
+      "samples": 1001,
+      "max_distance2_error": 3.7470027081099033e-16,
+      "max_cubic_residual": 2.6645352591003757e-15
+    }
+  },
+  "versions": {
+    "python": "3.13.7",
+    "clarabel": "0.11.1",
+    "numpy": "2.5.0",
+    "scipy": "1.18.0",
+    "sympy": "1.14.0",
+    "cvxpy": "1.9.2",
+    "matplotlib": "3.11.0"
+  }
+}

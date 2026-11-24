@@ -1,0 +1,33 @@
+Dimensions line: 4 4 4
+Matrix dimensions: 4 x 4
+Input: input.mtx  shape=(4, 4)  N=2  d=2
+iter:5, dist:0.3351158379159539, trials:50
+iter:10, dist:0.3337385921810475, trials:562
+iter:15, dist:0.3334886496330039, trials:2089
+iter:20, dist:0.3333937053099497, trials:3306
+iter:25, dist:0.33335935245334863, trials:7142
+iter:30, dist:0.3333482842861442, trials:9590
+iter:35, dist:0.33334513384917996, trials:16796
+iter:40, dist:0.33334007379955044, trials:22949
+iter:45, dist:0.3333360528665372, trials:35591
+iter:50, dist:0.33333535636642697, trials:67300
+iter:55, dist:0.3333348197117053, trials:82401
+iter:60, dist:0.3333341153299626, trials:106715
+iter:65, dist:0.33333399015836757, trials:139933
+iter:70, dist:0.33333389602978847, trials:158342
+iter:75, dist:0.33333382588735294, trials:268801
+iter:80, dist:0.33333381598571654, trials:329680
+iter:85, dist:0.33333380177449545, trials:481249
+iter:90, dist:0.3333337939043065, trials:669257
+iter:95, dist:0.33333379133275165, trials:965217
+iter:100, dist:0.33333378912453027, trials:1280519
+iter:105, dist:0.33333378810663206, trials:2162115
+iter:110, dist:0.3333337875639443, trials:2347946
+iter:115, dist:0.3333337870637218, trials:3046478
+iter:120, dist:0.33333378691502275, trials:4686032
+iter:125, dist:0.3333337866934962, trials:6926752
+iter:130, dist:0.3333337866103034, trials:9843608
+termination: trials=10000000, corrections=130
+optimizer=grad  initial dist=0.500000  final dist=0.333334  corrections=130
+CSS matrix  → ./input_css.mtx
+Distances   → ./input_distances.csv

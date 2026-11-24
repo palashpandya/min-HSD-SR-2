@@ -1,0 +1,7 @@
+cff-version: 1.2.0
+message: "Please cite the accompanying manuscript when using these calculations."
+title: "Reproducibility code for minimum Hilbert--Schmidt distance of pure Schmidt-rank-two states"
+type: software
+authors:
+  - family-names: Pandya
+    given-names: Palash

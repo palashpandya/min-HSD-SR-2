@@ -1,0 +1,12 @@
+[input]
+matrix_path = "input.mtx"
+N = 2
+d = 2
+[algorithm]
+optimizer = "grad"
+max_corr = 200
+max_trials = 10000000
+tol = 1e-15
+seed = 44
+[output]
+dir = "."

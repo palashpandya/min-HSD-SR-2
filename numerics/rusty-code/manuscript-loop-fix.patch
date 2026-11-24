@@ -1,0 +1,46 @@
+--- a/src/gilbert.rs
++++ b/src/gilbert.rs
+@@ -39,6 +39,7 @@
+ }
+ 
+ pub fn hs_dist(a: &Mat, b: &Mat) -> f64 {
++    // Historical API name: this returns the SQUARED Hilbert--Schmidt distance.
+     hs_dist_sq(a, b).max(0.0)
+ }
+ 
+@@ -219,17 +220,19 @@
+     let mut num_corr = 0usize;
+     let mut num_trials = 0usize;
+ 
+-    let mut vecs = random_product_vecs(n, d, rng);
+-    let mut rho2 = vecs_to_dm(&vecs);
+-    num_trials += 1;
++    if d_old <= tol {
++        return (rho1, distances);
++    }
+ 
+     while num_corr < max_corr && num_trials < max_trials {
+-        
+-        while !preselection_ok(rho0, &rho1, &rho2) && num_trials < max_trials {
+-            vecs = random_product_vecs(n, d, rng);
+-            rho2 = vecs_to_dm(&vecs);
+-            num_trials += 1;
+-            //println!("Trial {num_trials}: preselection failed");
++        // Every attempt consumes a trial and starts from a fresh product state.
++        // Otherwise a failed optimized update can repeat forever without
++        // advancing either stopping counter.
++        let vecs = random_product_vecs(n, d, rng);
++        let rho2 = vecs_to_dm(&vecs);
++        num_trials += 1;
++        if !preselection_ok(rho0, &rho1, &rho2) {
++            continue;
+         }
+ 
+         let delta = rho0 - &rho1;
+@@ -258,5 +261,6 @@
+         }
+     }
+ 
++    println!("termination: trials={num_trials}, corrections={num_corr}");
+     (rho1, distances)
+ }
