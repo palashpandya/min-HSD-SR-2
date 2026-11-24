@@ -5,7 +5,7 @@ distance for pure states of Schmidt rank two*.
 
 Manuscript code and data: <https://github.com/palashpandya/min-HSD-SR-2>.
 
-Original Rust Gilbert implementation: <https://github.com/palashpandya/rusty-code>,
+Original Rust Gilbert implementation: <https://github.com/palashpandya/gilbert-opt-rs>,
 commit `8df88703d8c5e5cfca2e5b2cb34a2ef962ed3a3f`.
 
 ## Reproduce the calculations
@@ -108,6 +108,6 @@ proves the optimum separately.
 
 Both Rust snapshots include an upstream commit, exact file hashes and a patch
 in their provenance files. The baseline snapshot is preserved separately to
-keep its original run records reproducible. The upstream `rusty-code`
+keep its original run records reproducible. The upstream `gilbert-opt-rs`
 repository is unchanged. Diagnostic filter-disabled experiments were used to
 investigate performance; they are not part of the reported comparison.

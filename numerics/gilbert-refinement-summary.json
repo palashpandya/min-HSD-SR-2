@@ -1,5 +1,5 @@
 {
-  "upstream": "https://github.com/palashpandya/rusty-code",
+  "upstream": "https://github.com/palashpandya/gilbert-opt-rs",
   "upstream_commit": "8df88703d8c5e5cfca2e5b2cb34a2ef962ed3a3f",
   "workers": 8,
   "primary_samples": 75,
