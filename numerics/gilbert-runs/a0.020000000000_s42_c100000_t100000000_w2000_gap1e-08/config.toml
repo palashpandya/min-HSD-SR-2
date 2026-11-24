@@ -1,0 +1,17 @@
+[input]
+matrix_path = "input.mtx"
+N = 2
+d = 2
+[algorithm]
+optimizer = "grad"
+max_corr = 100000
+max_trials = 100000000
+tol = 1e-15
+seed = 42
+preselection = true
+gradient_steps = 3
+local_sweeps = 2000
+reference_distance2 = 0.00059249391398655173
+reference_gap = 1e-08
+[output]
+dir = "."

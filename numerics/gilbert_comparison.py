@@ -8,6 +8,9 @@ from pathlib import Path
 import argparse
 import csv
 import hashlib
+import fcntl
+import functools
+import inspect
 import json
 import os
 import re
@@ -21,6 +24,7 @@ from rank2_validation import ASTAR, SQRT2, distance2, target
 HERE = Path(__file__).resolve().parent
 RAW = HERE / 'gilbert-runs'
 RUST = HERE / 'rusty-code'
+BASELINE_RUST = HERE / 'rusty-code-baseline'
 UPSTREAM = 'https://github.com/palashpandya/rusty-code'
 COMMIT = '8df88703d8c5e5cfca2e5b2cb34a2ef962ed3a3f'
 TRIAL_LIMIT = 10_000_000
@@ -31,8 +35,36 @@ def filehash(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def run_one(alpha, seed, budget, binary):
+def locked_run(function):
+    """Serialize duplicate jobs if two comparison controllers share a cache."""
+    @functools.wraps(function)
+    def wrapped(*args,**kwargs):
+        params=inspect.signature(function).bind(*args,**kwargs).arguments
+        locks=RAW/'.locks';locks.mkdir(parents=True,exist_ok=True)
+        label=f'a{params["alpha"]:.12f}_s{params["seed"]}_c{params["budget"]}'
+        with (locks/(label+'.lock')).open('a') as handle:
+            fcntl.flock(handle,fcntl.LOCK_EX)
+            return function(*args,**kwargs)
+    return wrapped
+
+
+@locked_run
+def run_one(alpha, seed, budget, binary, trial_limit=TRIAL_LIMIT,
+            optimizer='grad', timeout=None, preselection=True, gradient_steps=3,
+            local_sweeps=20, reference_gap=None):
     label = f'a{alpha:.12f}_s{seed}_c{budget}'
+    if trial_limit != TRIAL_LIMIT:
+        label += f'_t{trial_limit}'
+    if optimizer != 'grad':
+        label += '_'+optimizer
+    if not preselection:
+        label += '_nopreselect'
+    if gradient_steps != 3:
+        label += f'_g{gradient_steps}'
+    if local_sweeps != 20:
+        label += f'_w{local_sweeps}'
+    if reference_gap is not None:
+        label += f'_gap{reference_gap:g}'
     run = RAW / label
     run.mkdir(parents=True, exist_ok=True)
     rho = target(alpha)
@@ -46,28 +78,44 @@ matrix_path = "input.mtx"
 N = 2
 d = 2
 [algorithm]
-optimizer = "grad"
+optimizer = "{optimizer}"
 max_corr = {budget}
-max_trials = {TRIAL_LIMIT}
+max_trials = {trial_limit}
 tol = {TOL}
 seed = {seed}
+preselection = {str(preselection).lower()}
+gradient_steps = {gradient_steps}
+local_sweeps = {local_sweeps}
 [output]
 dir = "."
 '''
+    if reference_gap is not None:
+        config=config.replace('[output]',f'reference_distance2 = {distance2(alpha):.17g}\n'
+                              f'reference_gap = {reference_gap:.17g}\n[output]')
     (run / 'config.toml').write_text(config)
     key = dict(alpha=float(alpha), seed=seed, correction_budget=budget,
-               trial_limit=TRIAL_LIMIT, binary_sha256=filehash(binary))
+               trial_limit=trial_limit, binary_sha256=filehash(binary))
+    if optimizer != 'grad':
+        key['optimizer'] = optimizer
+    if not preselection:
+        key['preselection'] = False
+    if gradient_steps != 3:
+        key['gradient_steps'] = gradient_steps
+    if local_sweeps != 20:
+        key['local_sweeps'] = local_sweeps
+    if reference_gap is not None:
+        key['reference_gap'] = reference_gap
     cache = run / 'checked.json'
     if cache.exists():
         old = json.loads(cache.read_text())
         if old.get('key') == key:
             return old['result']
     start = time.monotonic()
-    process = subprocess.run([str(binary)], cwd=run, text=True,
-                             capture_output=True, timeout=120, check=True)
+    with (run/'stdout.log').open('w') as stdout, (run/'stderr.log').open('w') as stderr:
+        subprocess.run([str(binary)], cwd=run, text=True, stdout=stdout,
+                       stderr=stderr, timeout=timeout, check=True)
     elapsed = time.monotonic() - start
-    (run / 'stdout.log').write_text(process.stdout)
-    (run / 'stderr.log').write_text(process.stderr)
+    process_stdout = (run/'stdout.log').read_text()
     history = np.loadtxt(run / 'input_distances.csv', delimiter=',', skiprows=1,
                         ndmin=2)[:, 1]
     matrix = np.asarray(mmread(run / 'input_css.mtx'))
@@ -84,12 +132,14 @@ dir = "."
     assert independent >= analytic-1e-12
     corrections = len(history)-1
     match = re.search(r'termination: trials=(\d+), corrections=(\d+)',
-                      process.stdout)
+                      process_stdout)
     trials = int(match[1]) if match else 0
     reason = ('distance_threshold' if history[-1] <= TOL else
+              'reference_gap' if reference_gap is not None and
+              history[-1]-analytic <= reference_gap+1e-15 else
               'correction_budget' if corrections == budget else 'trial_limit')
     if reason == 'trial_limit':
-        assert trials == TRIAL_LIMIT
+        assert trials == trial_limit
     result = dict(alpha=float(alpha), seed=seed, correction_budget=budget,
                   corrections=corrections, trials=trials, stop_reason=reason,
                   analytic_distance2=analytic, gilbert_distance2=independent,
@@ -115,7 +165,7 @@ def main():
     else:
         build = HERE / '.gilbert-build'
         subprocess.run(['cargo','build','--release','--locked','--target-dir',str(build)],
-                       cwd=RUST, check=True)
+                       cwd=BASELINE_RUST, check=True)
         binary = build / 'release/rusty-code'
     baseline = list(csv.DictReader((HERE/'rank2-validation.csv').open()))
     rows = [run_one(float(r['alpha']),42,200,binary) for r in baseline]
@@ -153,8 +203,8 @@ def main():
         all_states_max_trace_error=max(r['trace_error'] for r in rows+repeated+long),
         rustc=subprocess.check_output(['rustc','--version'],text=True).strip(),
         cargo=subprocess.check_output(['cargo','--version'],text=True).strip(),
-        source_sha256={str(p.relative_to(RUST)):filehash(p)
-                       for p in sorted(RUST.glob('src/*.rs'))},
+        source_sha256={str(p.relative_to(BASELINE_RUST)):filehash(p)
+                       for p in sorted(BASELINE_RUST.glob('src/*.rs'))},
         total_runs=len(rows+repeated+long))
     (HERE/'gilbert-summary.json').write_text(json.dumps(summary,indent=2)+'\n')
     print(json.dumps(summary,indent=2),flush=True)

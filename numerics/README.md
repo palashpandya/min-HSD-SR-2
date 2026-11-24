@@ -3,9 +3,14 @@
 Code and data for Palash Pandya's manuscript, *Minimum Hilbert--Schmidt
 distance for pure states of Schmidt rank two*.
 
+Manuscript code and data: <https://github.com/palashpandya/min-HSD-SR-2>.
+
+Original Rust Gilbert implementation: <https://github.com/palashpandya/rusty-code>,
+commit `8df88703d8c5e5cfca2e5b2cb34a2ef962ed3a3f`.
+
 ## Reproduce the calculations
 
-From the root of the code archive (which contains `numerics/` and `gfx/`):
+From the repository root:
 
 ```sh
 python3 -m venv .venv
@@ -13,71 +18,96 @@ python3 -m venv .venv
 python3 -m pip install -r requirements.txt
 python3 numerics/rank2_validation.py
 python3 numerics/gilbert_comparison.py
+python3 numerics/gilbert_refinement.py --workers 8
+python3 numerics/plot_gilbert_comparison.py
 ```
 
-The first script performs independent unrestricted PPT optimization, symbolic
-checks, and formula/decomposition checks. It writes CSV data, a JSON residual
-report, and the analytical/PPT figures. The second builds the Rust snapshot
-using its Cargo lockfile, runs the Gilbert comparison, saves every raw output,
-and writes `gilbert-comparison.csv` and `gilbert-summary.json`. Cargo requires
-network access on its first build. An existing executable can be supplied as
-`python3 numerics/gilbert_comparison.py --binary /path/to/rusty-code`.
+Rust/Cargo are also required. Cargo downloads the locked dependencies on its
+first build. Both Gilbert scripts accept `--binary /path/to/rusty-code` to use
+an existing executable. Each run has its own directory and config, so the
+refinement script can safely run eight independent subprocesses concurrently.
 
-Run `python3 numerics/plot_gilbert_comparison.py` last to regenerate the figures
-containing all three methods. Rerunning the first script alone restores the
-analytical/PPT-only version of the comparison figure; the last command adds
-the Gilbert data again.
+`rank2_validation.py` performs unrestricted PPT optimization and symbolic,
+formula, derivative and explicit separable-decomposition checks. It writes CSV
+figure data, a JSON residual report and the analytical/PPT figures. The two
+Gilbert scripts save the input matrices, final separable states, complete
+trajectories, logs, configurations and independent matrix checks. The last
+command regenerates the figures containing all three methods. Rerun it after
+`rank2_validation.py`, which by itself restores the PPT-only comparison figure.
 
-The environment used for the recorded Python results is listed in
-`rank2-validation.json`. The Rust compiler and numerical protocol are recorded
-in `gilbert-summary.json`. Elapsed times are machine-dependent.
+Python versions are pinned in `requirements.txt` and recorded in
+`numerics/rank2-validation.json`. Rust versions, exact settings and actual
+termination counts are recorded in the Gilbert JSON summaries. Timings depend
+on the machine. Large refinement trajectories and logs are losslessly gzipped;
+NumPy can read the `.csv.gz` trajectories directly.
 
-## Gilbert implementation and exact version
+## Initial comparison
 
-Upstream repository: <https://github.com/palashpandya/rusty-code>.
+`gilbert_comparison.py` builds `rusty-code-baseline/`, the exact source snapshot
+used for the initial 102 runs. It uses the upstream `grad` optimizer with 20
+alternating sweeps, three gradient steps per site per sweep, step size 0.3,
+and raw random-product preselection. The source includes the documented loop
+fix so every attempt advances the trial counter, plus an immediate exit at an
+initially exact product input.
 
-Upstream commit: `8df88703d8c5e5cfca2e5b2cb34a2ef962ed3a3f`.
+The baseline contains the same 75 alpha values as the PPT calculation, seed
+42, at most 200 accepted corrections and 10,000,000 random trials per input.
+It also contains 18 checks at seeds 43 and 44, and nine representative runs
+with a 2,000-correction budget. Actual corrections can be fewer than the budget;
+see `gilbert-comparison.csv` and `gilbert-summary.json`. The 1e-15 threshold is
+on the squared distance itself, not a certified optimization-gap tolerance.
 
-The `rusty-code/` directory is a source snapshot of this commit with the
-small changes in `rusty-code/manuscript-loop-fix.patch`. These changes sample
-a fresh product state and advance the trial counter on every attempt, stop
-immediately for an initially exact product input, and report final counts.
-The upstream repository is unchanged. File hashes and provenance are saved
-in `rusty-code/provenance.json`.
+## Refined comparison
 
-The historical Rust function `hs_dist` and CSV column `distance` return
-**squared** HSD. The comparison script independently recomputes the squared
-Frobenius norm from every saved density matrix. It also checks normalization,
-Hermiticity, positivity, PPT, trajectory monotonicity, and the analytical lower
-bound. The iterates are separable by construction: the initial diagonal state
-is a product-basis mixture, and each update is a convex combination with a
-product projector. PPT checks are additional numerical checks, not the reason
-the iterates are separable.
+`gilbert_refinement.py` builds `rusty-code/`. It retains the SAME raw
+preselection criterion:
 
-## Sampling and stopping protocol
+`Tr[(rho - sigma)(tau - sigma)] > 0`.
 
-- Baseline: the same 75 alpha values as the PPT calculation, seed 42, at most
-  200 accepted corrections and 10,000,000 random trials per input.
-- Seed checks: alpha = 0.01, 0.05, 0.2, 0.3, alpha_star, 0.4, 0.5, 0.6,
-  and 1/sqrt(2), seeds 43 and 44, with the same 200-correction budget.
-- Longer runs: the same nine representative inputs, seed 42, at most 2,000
-  accepted corrections and 10,000,000 trials.
-- The `grad` product optimizer uses 20 local sweeps, three gradient steps per
-  site per sweep, and learning rate 0.3. The upstream random-product
-  preselection filter is retained.
-- The threshold 1e-15 applies to the squared distance itself. It is **not** a
-  certified optimization-gap tolerance. The other stopping conditions are
-  finite budgets. Check `corrections` and `stop_reason` for actual termination.
+Here sigma is the current iterate and tau is the sampled product projector.
+Only passing trials are optimized. The refined implementation caches the
+residual and evaluates the product-vector expectation directly, avoiding
+unnecessary full-matrix construction for rejected trials. A Rust regression
+test compares this expression with the original matrix calculation on 400
+random cases in local dimensions two and three. Run it with:
 
-Each directory under `gilbert-runs/` includes the input matrix, relative-path
-configuration, complete distance trajectory, final separable state, process
-logs, and checked result. Randomness is fixed by the seed and the locked Rust
-dependencies. The baseline and longer run at a given input and seed have the
-same trajectory until the shorter run stops. These calculations provide
-numerical upper bounds; the manuscript proves the optimum independently.
+```sh
+cargo test --release --locked --manifest-path numerics/rusty-code/Cargo.toml
+```
 
-## Repository publication
+Defaults for the reported refinement are eight workers, 2,000 alternating
+local sweeps, three gradient steps per site per sweep, step size 0.3,
+100,000 accepted corrections, and 100,000,000 raw trials per input. All 75
+PPT-grid inputs use seed 42; the Bell state additionally uses seeds 43 and 44.
+The larger alternating-sweep budget is important: adding random trials alone
+does not compensate for an insufficiently optimized product state.
 
-This archive is prepared for the manuscript-specific GitHub repository that
-the author will create. Its final URL and release identifier should be added
-to the manuscript alongside the existing Rust implementation repository.
+An additional benchmark stopping rule ends a run when its squared distance
+is within 1e-8 of the analytical value. That scalar reference is used ONLY
+for stopping, never to initialize an iterate, propose a product state, or
+choose convex weights. It is not an independently computed dual certificate.
+Set `--gap 0` to disable it and run to the finite correction/trial budgets.
+All limits can be changed through `--corrections`, `--trials`, `--sweeps`,
+`--gradient-steps` and `--workers`. The final CSV and JSON summary record which
+stopping condition actually occurred; reaching a budget is not convergence.
+
+## Precision, validity and provenance
+
+All calculations use double precision: Rust `f64` and `Complex64` (two f64
+components), NumPy float64 and complex128. The historical Rust function
+`hs_dist` and CSV column `distance` contain SQUARED Hilbert--Schmidt distance.
+Every saved matrix is independently checked against that logged value using
+the squared Frobenius norm. Checks also cover trace, Hermiticity, positivity,
+PPT, monotone trajectories and the analytical lower bound.
+
+Every iterate is separable by construction: the initial diagonal state is a
+product-basis mixture and each update is a convex combination with a pure
+product projector. PPT tests are additional checks, not the reason the
+iterates are separable. The Gilbert outputs are upper bounds; the manuscript
+proves the optimum separately.
+
+Both Rust snapshots include an upstream commit, exact file hashes and a patch
+in their provenance files. The baseline snapshot is preserved separately to
+keep its original run records reproducible. The upstream `rusty-code`
+repository is unchanged. Diagnostic filter-disabled experiments were used to
+investigate performance; they are not part of the reported comparison.

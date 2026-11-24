@@ -81,6 +81,20 @@ pub fn preselection_ok(rho0: &Mat, rho1: &Mat, rho2: &Mat) -> bool {
     trace_of_product(&delta, &diff) > 0.0
 }
 
+// Same preselection criterion, evaluated without constructing the product
+// projector or multiplying two full matrices on every rejected trial.
+fn product_preselection_score(delta: &Mat, vecs: &[Vec1], threshold: f64) -> f64 {
+    let mut ket = Array1::from_elem(1, c(1.0));
+    for v in vecs { ket = kron_vec(&ket, v); }
+    let mut expectation = c(0.0);
+    for i in 0..ket.len() {
+        for j in 0..ket.len() {
+            expectation += ket[i].conj() * delta[(i,j)] * ket[j];
+        }
+    }
+    expectation.re - threshold
+}
+
 // Forms L of shape (dl*d*dr, d) where L[i*d*dr + a*dr + l, a] = left[i]*right[l],
 // then returns L.H @ delta @ L — the effective d×d operator for one qudit.
 fn effective_op(delta: &Mat, left: &Vec1, right: &Vec1, d: usize) -> Mat {
@@ -210,6 +224,11 @@ pub fn gilbert<R: Rng>(
     max_trials: usize,
     optimizer: &str,
     tol: f64,
+    preselection: bool,
+    gradient_steps: usize,
+    local_sweeps: usize,
+    reference_distance2: Option<f64>,
+    reference_gap: f64,
     rng: &mut R,
 ) -> (Mat, Vec<f64>) {
     // Initial CSS: diagonal of rho0
@@ -219,6 +238,8 @@ pub fn gilbert<R: Rng>(
     let mut distances = vec![d_old];
     let mut num_corr = 0usize;
     let mut num_trials = 0usize;
+    let mut delta = rho0 - &rho1;
+    let mut threshold = trace_of_product(&delta, &rho1);
 
     if d_old <= tol {
         return (rho1, distances);
@@ -229,17 +250,15 @@ pub fn gilbert<R: Rng>(
         // Otherwise a failed optimized update can repeat forever without
         // advancing either stopping counter.
         let vecs = random_product_vecs(n, d, rng);
-        let rho2 = vecs_to_dm(&vecs);
         num_trials += 1;
-        if !preselection_ok(rho0, &rho1, &rho2) {
+        if preselection && product_preselection_score(&delta, &vecs, threshold) <= 0.0 {
             continue;
         }
 
-        let delta = rho0 - &rho1;
         let opt_vecs = if optimizer == "grad" {
-            optimize_product_state_grad(&delta, &vecs, n, d, 20, 3, 0.3)
+            optimize_product_state_grad(&delta, &vecs, n, d, local_sweeps, gradient_steps, 0.3)
         } else {
-            optimize_product_state(&delta, &vecs, n, d, 20)
+            optimize_product_state(&delta, &vecs, n, d, local_sweeps)
         };
         let rho2 = vecs_to_dm(&opt_vecs);
 
@@ -255,12 +274,52 @@ pub fn gilbert<R: Rng>(
                 println!("iter:{num_corr}, dist:{d_old}, trials:{num_trials}");
             }
             distances.push(d_old);
+            delta = rho0 - &rho1;
+            threshold = trace_of_product(&delta, &rho1);
             if d_old < tol {
+                break;
+            }
+            // Optional benchmark stopping rule. The reference is used only
+            // to stop an independent trajectory, never to construct a trial.
+            if reference_distance2.is_some_and(|r| d_old-r <= reference_gap) {
                 break;
             }
         }
     }
 
-    println!("termination: trials={num_trials}, corrections={num_corr}");
+    let reason = if d_old < tol { "distance_threshold" }
+        else if reference_distance2.is_some_and(|r| d_old-r <= reference_gap) {
+            "reference_gap"
+        } else if num_corr >= max_corr { "correction_budget" }
+        else { "trial_limit" };
+    println!("termination: trials={num_trials}, corrections={num_corr}, reason={reason}");
     (rho1, distances)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
+
+    #[test]
+    fn cached_preselection_matches_matrix_criterion() {
+        let mut rng = StdRng::seed_from_u64(20261124);
+        for d in [2, 3] {
+            for _ in 0..200 {
+                let rho0 = vecs_to_dm(&random_product_vecs(2,d,&mut rng));
+                let a = vecs_to_dm(&random_product_vecs(2,d,&mut rng));
+                let b = vecs_to_dm(&random_product_vecs(2,d,&mut rng));
+                let rho1 = a.mapv(|x| x*0.37) + b.mapv(|x| x*0.63);
+                let vecs = random_product_vecs(2,d,&mut rng);
+                let rho2 = vecs_to_dm(&vecs);
+                let delta = &rho0 - &rho1;
+                let full = trace_of_product(&delta,&(&rho2-&rho1));
+                let cached = product_preselection_score(
+                    &delta,&vecs,trace_of_product(&delta,&rho1));
+                assert!((full-cached).abs() < 2e-14);
+                assert_eq!(preselection_ok(&rho0,&rho1,&rho2),cached > 0.0);
+            }
+        }
+    }
 }

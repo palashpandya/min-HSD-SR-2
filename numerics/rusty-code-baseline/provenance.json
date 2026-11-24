@@ -1,0 +1,24 @@
+{
+  "repository": "https://github.com/palashpandya/rusty-code",
+  "upstream_commit": "8df88703d8c5e5cfca2e5b2cb34a2ef962ed3a3f",
+  "upstream_clean": true,
+  "upstream_sha256": {
+    "Cargo.toml": "764d4f50f4e96e1ee5345d9f6df78ec3767c9e6933c961cb982899679455424a",
+    "Cargo.lock": "f527d7c37ed0a2eaa66e061e38856ddd2055bb58802c4e097ba0ace375c058e9",
+    "src/gilbert.rs": "8eca538791e239a228f2a8795d2d880cd556ad5288f7b98ca0d1d31ba27ff5ab",
+    "src/main.rs": "fe21f81aab7bebe38f08c747f2faa9b7dee3008cf653f41b2c01a26560400625",
+    "src/dataio.rs": "8dacaeef8cf4e441b3b3b98841c9b8d4c7312b0827771852f548f05cdc92eb63"
+  },
+  "snapshot_sha256": {
+    "Cargo.toml": "764d4f50f4e96e1ee5345d9f6df78ec3767c9e6933c961cb982899679455424a",
+    "Cargo.lock": "f527d7c37ed0a2eaa66e061e38856ddd2055bb58802c4e097ba0ace375c058e9",
+    "src/gilbert.rs": "a15847cab7ad45c820119df3e7b4071ee239ee80ee0249f7a23420479325a027",
+    "src/main.rs": "fe21f81aab7bebe38f08c747f2faa9b7dee3008cf653f41b2c01a26560400625",
+    "src/dataio.rs": "8dacaeef8cf4e441b3b3b98841c9b8d4c7312b0827771852f548f05cdc92eb63"
+  },
+  "changes": [
+    "Fresh random product state on every attempt, so trial limit always advances.",
+    "Return immediately when initial squared distance meets the threshold (product input).",
+    "Document historical squared-distance API and print final trial/correction counts."
+  ]
+}
